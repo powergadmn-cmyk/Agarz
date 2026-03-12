@@ -514,3 +514,60 @@ Technical Notes:
 
 Next Step:
 Implementar TASK-008 para consolidar `GameStateStore` multi-fuente (protocolo + señales browser + visión opcional), propagar indicadores de calidad de estado al runtime safety y añadir replay/diagnóstico visual de incidentes.
+
+## TASK-008
+
+Status:
+completed
+
+Objective:
+Implementar una capa opcional de visión con OpenCV como complemento del estado por protocolo, añadiendo captura/preprocesado/detección heurística y fusión protocol-first sin reemplazar la fuente primaria WebSocket.
+
+Changes Made:
+- Se extendió configuración de visión para activar/desactivar pipeline y calibrar umbrales heurísticos, incluyendo modo debug de frames.
+- Se implementaron modelos visuales (`VisualRegion`, `VisualObservations`) y utilidades para clasificar señales de comida, blobs grandes y candidatos de virus.
+- Se implementó `ScreenCaptureAdapter` con implementación dummy para entorno local de desarrollo/test.
+- Se implementó `FramePreprocessor` (blur + normalización HSV) y detectores heurísticos en `BasicVisionDetector`.
+- Se implementó `ProtocolFirstFusion` para enriquecer metadata manteniendo prioridad absoluta del snapshot protocolar.
+- Se integró `VisionService` en bootstrap/runtime de forma opcional por configuración, con cierre seguro y métricas básicas de observación.
+- Se amplió `GameStateStore` para aceptar observaciones visuales complementarias sin alterar estado de protocolo.
+- Se añadieron tests unitarios de capa visual/fusión y se validó compilación completa con `python -m compileall app tests`.
+
+Files Affected:
+- created:
+  - app/vision/models.py
+  - app/vision/capture.py
+  - app/vision/preprocessing.py
+  - app/vision/detectors.py
+  - app/vision/fusion.py
+  - tests/test_vision_layer.py
+- modified:
+  - app/config/models.py
+  - configs/default.yaml
+  - app/vision/service.py
+  - app/vision/__init__.py
+  - app/protocol/state_store.py
+  - app/core/runtime.py
+  - app/bootstrap.py
+  - STATE.md
+- removed:
+  - none
+
+Dependencies:
+- added:
+  - none
+- removed:
+  - none
+- unchanged
+
+Architecture Impact:
+major
+
+Technical Notes:
+- Se mantiene el principio protocol-first: visión solo complementa metadata y no sobrescribe entidades/probabilidades de protocolo.
+- La detección visual es deliberadamente heurística y conservadora para evitar sobre-automatización frágil en esta fase.
+- El modo debug deja preparada la evolución a persistencia de frames anotados/replay visual avanzado en próximas tareas.
+- El diseño actual deja lista la extensión a integración real de captura del canvas y a Qwen-VL en etapa posterior.
+
+Next Step:
+Implementar TASK-009 para consolidar world model multi-fuente con score de calidad de estado, calibrar umbrales de visión con sesiones reales y añadir pipeline de replay visual de incidentes.
