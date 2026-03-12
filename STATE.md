@@ -303,3 +303,74 @@ Technical Notes:
 
 Next Step:
 Implementar TASK-005 para conectar esta policy MVP al modelo de mundo consolidado (`GameStateStore` central multi-fuente), incorporar validaciones de consistencia espacial y calibrar umbrales con telemetría en sesiones reales.
+
+## TASK-005
+
+Status:
+completed
+
+Objective:
+Implementar el orquestador principal del bot (runtime) para un loop robusto y entendible que coordine percepción, decisión, ejecución de acciones, telemetría y recuperación, incluyendo rate limiting, separación de ticks, dry-run y shutdown limpio.
+
+Changes Made:
+- Se reforzó el runtime principal para ejecutar ciclo coordinado por ticks separados:
+  - perception tick
+  - decision tick
+  - action tick
+- Se añadió rate limiting central con `tick_interval_ms` y control por divisores `every_n_ticks`.
+- Se implementó modo `dry-run` para depuración sin enviar inputs reales al navegador.
+- Se añadió summary periódico de estado en logs de consola (`status_summary_every_n_ticks`).
+- Se añadió cancelación limpia mediante señal interna y método explícito `request_shutdown()`.
+- Se añadió shutdown seguro en `finally`, cerrando provider y executor aun cuando haya errores.
+- Se extendieron contratos de infraestructura con `close()` para cierre ordenado:
+  - `StateProvider.close()`
+  - `InputExecutor.close()`
+- Se adaptaron implementaciones concretas para cumplir cierre limpio:
+  - `WebSocketStateProvider.close()`
+  - `BrowserInputExecutor.close()`
+- Se amplió configuración runtime en modelos y YAML:
+  - `perception_every_n_ticks`
+  - `decision_every_n_ticks`
+  - `action_every_n_ticks`
+  - `status_summary_every_n_ticks`
+  - `dry_run`
+- Se amplió CLI con flag `--dry-run` para activar ejecución segura de depuración.
+- Se añadieron tests unitarios del orquestador cubriendo:
+  - separación de ticks
+  - dry-run sin ejecución de inputs
+  - shutdown limpio con `close()`
+- Verificación técnica realizada con compilación estática: `python -m compileall app tests`.
+
+Files Affected:
+- created:
+  - tests/test_runtime_orchestrator.py
+- modified:
+  - app/config/models.py
+  - configs/default.yaml
+  - app/core/contracts.py
+  - app/core/runtime.py
+  - app/protocol/websocket.py
+  - app/browser/controller.py
+  - app/main.py
+  - STATE.md
+- removed:
+  - none
+
+Dependencies:
+- added:
+  - none
+- removed:
+  - none
+- unchanged
+
+Architecture Impact:
+major
+
+Technical Notes:
+- Se mantuvo diseño síncrono para máxima claridad operativa en fase MVP, con separación explícita de responsabilidades.
+- El modo dry-run evita apertura/uso real del ejecutor de inputs y registra acciones omitidas para auditoría.
+- El summary periódico permite observar comportamiento del loop (ticks activos, estado y modo) sin instrumentación externa adicional.
+- El cierre en `finally` protege contra fugas de recursos y deja la base preparada para evolucionar a runtime async en fases posteriores.
+
+Next Step:
+Implementar TASK-006 para conectar el orquestador con un `GameStateStore` de mundo consolidado multi-fuente (protocolo/visión/UI), añadir métricas de latencia por etapa y evaluar migración progresiva a ejecución async con colas de eventos.
