@@ -374,3 +374,63 @@ Technical Notes:
 
 Next Step:
 Implementar TASK-006 para conectar el orquestador con un `GameStateStore` de mundo consolidado multi-fuente (protocolo/visión/UI), añadir métricas de latencia por etapa y evaluar migración progresiva a ejecución async con colas de eventos.
+
+## TASK-006
+
+Status:
+completed
+
+Objective:
+Implementar observabilidad básica production-oriented para el bot de AgarZ, incorporando logging estructurado, métricas operativas clave, snapshots ligeros para depuración/replay y persistencia de eventos de fallo para acelerar iteración y diagnóstico.
+
+Changes Made:
+- Se extendió configuración tipada de telemetría y safety con controles para logging estructurado, reporter periódico, buffer de snapshots, replay JSONL y persistencia de fallos en disco.
+- Se implementó formateador JSON para logging centralizado y activación por configuración sin romper el flujo de logs existente.
+- Se ampliaron métricas runtime con señales clave:
+  - duración de tick
+  - latencia decisión→acción
+  - supervivencia
+  - masa máxima
+  - acciones por minuto
+  - transiciones de estado
+- Se creó la capa de debug/replay (`SnapshotStore`, `SnapshotRecord`, `DebugReporter`, `ReplaySink`, `JsonlReplaySink`) con almacenamiento ligero y serialización JSONL.
+- Se integró observabilidad en runtime para recolectar assessment, construir snapshots por tick, reportar estado táctico y emitir métricas avanzadas durante la ejecución.
+- Se reforzó recovery para persistir eventos de error/fallo en disco cuando la configuración lo habilita.
+- Se añadieron tests unitarios de observabilidad para store, métricas, snapshots y replay sink.
+- Validación técnica ejecutada con compilación estática: `python -m compileall app tests` (exit code 0).
+
+Files Affected:
+- created:
+  - app/telemetry/debug.py
+  - tests/test_observability.py
+- modified:
+  - app/config/models.py
+  - app/config/__init__.py
+  - configs/default.yaml
+  - app/utils/logging.py
+  - app/telemetry/metrics.py
+  - app/telemetry/__init__.py
+  - app/core/runtime.py
+  - app/safety/recovery.py
+  - STATE.md
+- removed:
+  - none
+
+Dependencies:
+- added:
+  - none
+- removed:
+  - none
+- unchanged
+
+Architecture Impact:
+major
+
+Technical Notes:
+- La activación de logging estructurado es configurable (`structured_logging`) para alternar entre salida humana y JSON sin cambios de código en llamadas de logging.
+- Se preservó compatibilidad en runtime con collectors más básicos mediante observación defensiva de capacidades.
+- El modelo snapshot/replay se diseñó de bajo overhead para no bloquear el loop principal en fase MVP.
+- La persistencia JSONL de fallos y replay habilita análisis post-mortem y base para visor/replayer en fases siguientes.
+
+Next Step:
+Implementar TASK-007 para consolidar un `GameStateStore` de mundo multi-fuente, conectar observabilidad con trazas por etapa (percepción/decisión/acción) y preparar herramienta de replay visual offline.
