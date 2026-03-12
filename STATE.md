@@ -155,3 +155,72 @@ Technical Notes:
 
 Next Step:
 Implementar TASK-003 para conectar `BinaryPacketStream` a una fuente real de tráfico WebSocket (proxy/sniffer local), validar opcodes con captura real y ajustar parsers de payload a formato exacto de AgarZ.
+
+## TASK-003
+
+Status:
+completed
+
+Objective:
+Implementar la capa de automatización de navegador para inyección de inputs con arquitectura desacoplada, incluyendo control de sesión, executor de acciones, adaptación dominio→input, extracción ligera de UI y demo controlada sin policy.
+
+Changes Made:
+- Se rediseñó `browser/controller.py` como módulo de automatización con separación de responsabilidades:
+  - `BrowserController` (abstracción de backend de navegador)
+  - `InputExecutor` (interfaz browser específica y compatible con runtime)
+  - `GameSessionController` (apertura de sesión, carga de URL, espera de canvas, start/spectate)
+  - `DomProbe` (lectura ligera de DOM/UI)
+  - `BrowserActionAdapter` (traducción de `BotAction` a inputs)
+  - `BrowserInputExecutor` (ejecutor concreto)
+  - `DummyBrowserController` (backend stub para pruebas/desarrollo)
+- Se añadieron acciones explícitas en `InputExecutor`:
+  - `move_mouse(x, y)`
+  - `split()`
+  - `eject()`
+  - `macro_z()`
+  - `macro_x()`
+  - `focus_game()`
+- Se añadió manejo básico de errores con `BrowserAutomationError` y logging operativo.
+- Se añadió demo controlada aislada en `app/browser/demo.py`.
+- Se añadió soporte CLI para ejecutar demo sin runtime completo (`--browser-demo`) en `app/main.py`.
+- Se ampliaron parámetros de configuración browser en `app/config/models.py` y `configs/default.yaml`:
+  - resolución (`viewport_width`, `viewport_height`)
+  - timings/delays (`startup_delay_ms`, `action_delay_ms`, `key_press_delay_ms`, `wait_canvas_timeout_ms`)
+  - selectores UI (`canvas_selector`, `focus_selector`, `start_button_selector`, `spectate_button_selector`)
+  - `headless` se mantiene `false` por defecto
+- Se actualizaron exports de módulo en `app/browser/__init__.py`.
+- Se añadieron tests unitarios de capa browser en `tests/test_browser_layer.py`.
+- Verificación técnica realizada con compilación estática: `python -m compileall app tests`.
+
+Files Affected:
+- created:
+  - app/browser/demo.py
+  - tests/test_browser_layer.py
+- modified:
+  - app/browser/controller.py
+  - app/browser/__init__.py
+  - app/config/models.py
+  - configs/default.yaml
+  - app/main.py
+  - STATE.md
+- removed:
+  - none
+
+Dependencies:
+- added:
+  - none
+- removed:
+  - none
+- unchanged
+
+Architecture Impact:
+major
+
+Technical Notes:
+- La integración real con Playwright/Selenium queda preparada detrás de `BrowserController`, evitando acoplar infraestructura en policy/state machine.
+- La demo de navegador no depende de la policy, cumpliendo la fase solicitada de ejecución controlada.
+- La capa browser mantiene compatibilidad con el contrato de ejecución del runtime (`execute(BotAction)`).
+- No se ejecutó `pytest` por ausencia de módulo en entorno; se validó compilación/sintaxis con `compileall`.
+
+Next Step:
+Implementar TASK-004 para conectar `BrowserController` a backend real (Playwright recomendado), incluir detección robusta de canvas/UI real de AgarZ y validar secuencias de input sobre sesión real.
