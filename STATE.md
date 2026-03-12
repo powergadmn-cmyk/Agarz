@@ -571,3 +571,69 @@ Technical Notes:
 
 Next Step:
 Implementar TASK-009 para consolidar world model multi-fuente con score de calidad de estado, calibrar umbrales de visión con sesiones reales y añadir pipeline de replay visual de incidentes.
+
+## TASK-009
+
+Status:
+completed
+
+Objective:
+Implementar la base de un manager multi-instancia para el bot de AgarZ, permitiendo lanzar y supervisar múltiples perfiles con lifecycle independiente, configuración aislada por instancia y preparación para coordinación futura.
+
+Changes Made:
+- Se extendió el modelo de configuración para soportar manager y perfiles múltiples (`ManagerConfig`, `BotProfileConfig`) incluyendo límites de recursos, separación de sesión e overrides por perfil.
+- Se actualizó la carga YAML para parsear `manager` y `profiles`, con defaults robustos y normalización de overrides.
+- Se añadió el paquete `app/manager` con:
+  - modelos de health (`HealthStatus`, `InstanceHealth`)
+  - contrato de instancia (`BotInstance`) y factory de runtime por perfil (`InstanceRuntimeFactory`)
+  - implementación `ThreadedBotInstance` con lifecycle independiente (start/stop/restart), estado de salud y resumen de métricas por instancia
+  - `BotManager` con operaciones de supervisión básica (`start`, `stop`, `restart`, `start_all`, `stop_all`, `restart_all`, `health_summary`)
+- Se amplió bootstrap con `DefaultInstanceRuntimeFactory` y `build_manager()` para composición DI del modo multi-instancia.
+- Se amplió la CLI para operaciones de manager:
+  - `--manager`
+  - `--manager-command {start|stop|restart|summary}`
+  - `--profile`
+- Se añadió aislamiento por perfil para logs y sesión (`log_file_path`, `session_id`, `session_data_dir`) sin coordinación estratégica entre bots.
+- Se añadió configuración ejemplo de perfiles y límites de recursos en `configs/default.yaml`.
+- Se añadieron tests unitarios de manager para lifecycle básico y respeto del límite máximo de instancias.
+- Se actualizó README con documentación breve del modo manager.
+- Verificación técnica ejecutada con compilación estática: `python -m compileall app tests` (exit code 0).
+
+Files Affected:
+- created:
+  - app/manager/__init__.py
+  - app/manager/health.py
+  - app/manager/instance.py
+  - app/manager/manager.py
+  - tests/test_bot_manager.py
+- modified:
+  - app/config/models.py
+  - app/config/loader.py
+  - app/config/__init__.py
+  - app/bootstrap.py
+  - app/main.py
+  - configs/default.yaml
+  - pyproject.toml
+  - README.md
+  - STATE.md
+- removed:
+  - none
+
+Dependencies:
+- added:
+  - none
+- removed:
+  - none
+- unchanged
+
+Architecture Impact:
+major
+
+Technical Notes:
+- La arquitectura quedó preparada para añadir coordinación estratégica posterior sin acoplarla al manager base.
+- Cada perfil construye runtime aislado con configuración derivada y límites de recursos declarativos (soft limits).
+- El manager actual implementa supervisión y lifecycle; no incluye aún scheduling/coordination entre bots, por diseño deliberado de fase.
+- En esta fase se validó compilación; la ejecución de `pytest` depende del entorno.
+
+Next Step:
+Implementar TASK-010 para añadir supervisión continua (watchdog), backoff inteligente por instancia, telemetry agregada cross-instance y base de canal de coordinación opcional entre bots.
