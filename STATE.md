@@ -86,3 +86,72 @@ Technical Notes:
 
 Next Step:
 Implementar TASK-002 para integrar cliente WebSocket real + parser de protocolo AgarZ y adaptar `WebSocketStateProvider` a frames reales.
+
+## TASK-002
+
+Status:
+completed
+
+Objective:
+Implementar la capa de protocolo/WebSocket orientada a mensajes binarios para AgarZ con arquitectura desacoplada, incluyendo parser base por opcodes, dispatcher, normalización a eventos internos y almacenamiento incremental en `GameStateStore`.
+
+Changes Made:
+- Se implementó infraestructura binaria base con `BinaryReader` y manejo robusto de offsets/lecturas (`app/protocol/binary_reader.py`).
+- Se definieron opcodes y versión de protocolo en estructura extensible (`app/protocol/opcodes.py`, `ProtocolSpec`).
+- Se crearon modelos de payload y evento de protocolo (`app/protocol/models.py`, `app/protocol/events.py`).
+- Se implementó `OpcodeRegistry` y `MessageDispatcher` para enrutado desacoplado por opcode (`app/protocol/registry.py`, `app/protocol/dispatcher.py`).
+- Se implementó `PacketParser` con handlers base para:
+  - ready/start/version
+  - player_id/spectate_id
+  - position update
+  - node add/update/remove
+  - leaderboard
+  - board size
+  - chat/top message
+- Se implementó normalización protocolo→dominio (`ProtocolEventNormalizer`) (`app/protocol/domain_events.py`).
+- Se implementó `GameStateStore` para aplicar eventos de dominio y mantener estado incremental (`app/protocol/state_store.py`).
+- Se introdujo abstracción de stream binario para futura conexión real (`BinaryPacketStream`) con implementación in-memory (`app/protocol/stream.py`).
+- Se integró el flujo parser/normalizer/store en `WebSocketStateProvider` sin mezclar browser automation (`app/protocol/websocket.py`).
+- Se actualizó capa de compatibilidad de parser (`app/protocol/parser.py`) y exports de módulo (`app/protocol/__init__.py`).
+- Se añadieron tests unitarios de parser/store con paquetes binarios simulados (`tests/test_protocol_parser.py`).
+- Verificación técnica realizada con compilación estática: `python -m compileall app tests`.
+
+Files Affected:
+- created:
+  - app/protocol/binary_reader.py
+  - app/protocol/opcodes.py
+  - app/protocol/events.py
+  - app/protocol/models.py
+  - app/protocol/registry.py
+  - app/protocol/dispatcher.py
+  - app/protocol/packet_parser.py
+  - app/protocol/domain_events.py
+  - app/protocol/state_store.py
+  - app/protocol/stream.py
+  - tests/test_protocol_parser.py
+- modified:
+  - app/protocol/__init__.py
+  - app/protocol/parser.py
+  - app/protocol/websocket.py
+  - STATE.md
+- removed:
+  - none
+
+Dependencies:
+- added:
+  - none
+- removed:
+  - none
+- unchanged
+
+Architecture Impact:
+major
+
+Technical Notes:
+- Los valores de opcode se dejan como placeholders explícitos y documentados para validación con tráfico real en una fase posterior.
+- El diseño separa claramente parsing binario, normalización de eventos y estado de juego para minimizar impacto ante cambios de protocolo.
+- `PacketParser` está preparado para versionado mediante `ProtocolSpec` + `OpcodeRegistry`.
+- `pytest` no estaba instalado en el entorno al intentar ejecución (`No module named pytest`), por lo que se validó sintaxis/compilación con `compileall`.
+
+Next Step:
+Implementar TASK-003 para conectar `BinaryPacketStream` a una fuente real de tráfico WebSocket (proxy/sniffer local), validar opcodes con captura real y ajustar parsers de payload a formato exacto de AgarZ.
