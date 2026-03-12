@@ -224,3 +224,82 @@ Technical Notes:
 
 Next Step:
 Implementar TASK-004 para conectar `BrowserController` a backend real (Playwright recomendado), incluir detección robusta de canvas/UI real de AgarZ y validar secuencias de input sobre sesión real.
+
+## TASK-004
+
+Status:
+completed
+
+Objective:
+Implementar la primera Policy MVP funcional y la máquina de estados táctica del bot para supervivencia y crecimiento conservador, con decisiones heurísticas explicables (sin ML), scoring de objetivos y split únicamente en escenarios simples de alta confianza y bajo riesgo.
+
+Changes Made:
+- Se añadió configuración tipada de policy y carga desde YAML con umbrales heurísticos:
+  - `safe_distance`
+  - `threat_ratio`
+  - `chase_ratio`
+  - `split_confidence_threshold`
+- Se implementó módulo de scoring heurístico en `app/policy/scoring.py`:
+  - evaluación de comida cercana
+  - detección de amenazas cercanas por ratio de masa
+  - selección de presas comestibles
+  - cálculo de confianza de split con bloqueo por riesgo
+- Se refactorizó `DefaultPolicy` a un motor MVP funcional en `app/policy/default_policy.py` con reglas:
+  - amenaza grande cercana -> evadir
+  - sin amenaza y con presa clara -> perseguir
+  - split solo con confianza alta y riesgo bajo
+  - sin amenaza y con comida -> buscar comida
+  - sin señales útiles -> idle/no-op
+- Se añadieron logs de decisión con causa y contexto de score/distancia para depuración.
+- Se actualizó la máquina de estados con los estados solicitados:
+  - `IDLE`
+  - `SEEK_FOOD`
+  - `EVADE_THREAT`
+  - `CHASE_TARGET`
+  - `RECOVER`
+- Se amplió `BotStateMachine` con `set_state()` para permitir transición táctica desde metadata de acción.
+- Se integró la salida de policy en el runtime manteniendo acciones abstractas, leyendo `next_state` desde metadata en `BotRuntime`.
+- Se mantuvo la integración con browser mediante acciones abstractas `BotAction` que siguen siendo traducidas por `BrowserActionAdapter`.
+- Se añadieron tests unitarios MVP:
+  - `tests/test_policy_mvp.py` para decisiones por snapshots simulados
+  - actualización de `tests/test_state_machine.py` para los nuevos estados
+- Validación técnica ejecutada: `python -m compileall app tests` (exit code 0).
+
+Files Affected:
+- created:
+  - app/policy/scoring.py
+  - tests/test_policy_mvp.py
+- modified:
+  - app/config/models.py
+  - app/config/loader.py
+  - app/policy/default_policy.py
+  - app/policy/__init__.py
+  - app/state_machine/models.py
+  - app/state_machine/machine.py
+  - app/state_machine/__init__.py
+  - app/bootstrap.py
+  - app/core/runtime.py
+  - configs/default.yaml
+  - tests/test_state_machine.py
+  - STATE.md
+- removed:
+  - none
+
+Dependencies:
+- added:
+  - none
+- removed:
+  - none
+- unchanged
+
+Architecture Impact:
+major
+
+Technical Notes:
+- La policy sigue siendo totalmente heurística y auditable; no hay acoplamiento con inputs físicos ni ML.
+- El canal de decisión permanece desacoplado: `PolicyEngine` produce `BotAction` abstracta y `BrowserActionAdapter` traduce a inputs.
+- La transición táctica se comunica con `action.metadata["next_state"]`, evitando acoplar política y runtime por tipos concretos adicionales.
+- El criterio de split se diseñó conservador: se inhibe si existe amenaza en radio de riesgo ampliado.
+
+Next Step:
+Implementar TASK-005 para conectar esta policy MVP al modelo de mundo consolidado (`GameStateStore` central multi-fuente), incorporar validaciones de consistencia espacial y calibrar umbrales con telemetría en sesiones reales.
