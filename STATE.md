@@ -434,3 +434,83 @@ Technical Notes:
 
 Next Step:
 Implementar TASK-007 para consolidar un `GameStateStore` de mundo multi-fuente, conectar observabilidad con trazas por etapa (percepción/decisión/acción) y preparar herramienta de replay visual offline.
+
+## TASK-007
+
+Status:
+completed
+
+Objective:
+Implementar una capa seria de seguridad operacional y recuperación para ejecución autónoma prolongada del bot, cubriendo detección de estado stale, loops sin progreso, control de ritmo de acciones, circuit breaker, refocus y recuperación con reset de emergencia.
+
+Changes Made:
+- Se extendió `SafetyConfig` con parámetros operativos para detectores, guards, circuit breaker y políticas de recuperación (`stale_state_seconds`, thresholds de loop, cooldowns de acción, timeout por fase, límites de recovery, persistencia de incidentes).
+- Se actualizó configuración YAML base con defaults seguros y explícitos para seguridad/recovery.
+- Se implementó capa `safety/guards.py` con:
+  - `StaleStateDetector`
+  - `LoopDetector`
+  - `ActionCooldownGuard`
+  - `TimeoutGuard`
+- Se implementó `safety/incidents.py` para registro estructurado de incidentes con severidad, tipo, causa raíz estimada y persistencia JSONL mediante `IncidentJournal`.
+- Se reforzó `RecoveryCoordinator` con:
+  - incident logging unificado
+  - reconexión y reset parcial (`recover_stale`)
+  - recuperación por loop (`recover_loop`)
+  - recuperación de foco (`recover_focus`)
+  - `emergency_reset` (close + reconnect + reopen)
+  - circuit breaker temporal con cooldown
+  - control de reintentos de recovery
+- Se amplió el contrato `RecoveryManager` con hooks opcionales para incidentes, estado del circuit breaker y estrategias de recuperación.
+- Se amplió capa browser para soporte de foco operacional (`is_focused`, `ensure_focus`) en controlador dummy y ejecutor.
+- Se integró en `BotRuntime`:
+  - chequeo de circuit breaker antes de procesar tick
+  - detección de stale state y recuperación automática
+  - detección de pérdida de foco y refocus/recovery
+  - detección de loops de acción sin progreso y recuperación
+  - guard de cooldown de acciones
+  - timeout por fase (percepción/decisión/acción) con incidentes
+  - fallback a `emergency_reset` cuando recovery no resuelve
+- Se añadieron tests de fallos simulados para guards/recovery/runtime safety:
+  - detección stale
+  - detección de loop sin progreso
+  - bloqueo por cooldown
+  - apertura de circuit breaker
+  - activación de recuperación por stale/focus/loop
+- Se validó compilación completa: `python -m compileall app tests` (exit code 0).
+
+Files Affected:
+- created:
+  - app/safety/guards.py
+  - app/safety/incidents.py
+  - tests/test_safety_recovery.py
+- modified:
+  - app/config/models.py
+  - configs/default.yaml
+  - app/core/contracts.py
+  - app/browser/controller.py
+  - app/safety/recovery.py
+  - app/core/runtime.py
+  - app/safety/__init__.py
+  - STATE.md
+- removed:
+  - none
+
+Dependencies:
+- added:
+  - none
+- removed:
+  - none
+- unchanged
+
+Architecture Impact:
+major
+
+Technical Notes:
+- Se priorizó diseño defensivo y desacoplado: detectores/guards separados de runtime y recovery para facilitar calibración y pruebas.
+- Los incidentes se modelan con causa raíz estimada para acortar diagnóstico post-mortem en operación prolongada.
+- El circuito de recuperación usa estrategia progresiva (recover específico → emergency reset) para minimizar downtime y evitar loops de error.
+- Se mantuvo compatibilidad hacia atrás en contratos mediante métodos no abstractos con comportamiento por defecto en `RecoveryManager`.
+- Timeouts y cooldowns se dejaron desactivados por defecto (`0`) en modelo para no romper fases previas; los valores operativos recomendados se publican en YAML.
+
+Next Step:
+Implementar TASK-008 para consolidar `GameStateStore` multi-fuente (protocolo + señales browser + visión opcional), propagar indicadores de calidad de estado al runtime safety y añadir replay/diagnóstico visual de incidentes.
